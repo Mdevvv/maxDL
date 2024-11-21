@@ -3,9 +3,7 @@ from pyplayready.device import Device
 from pyplayready.pssh import PSSH
 
 
-import requests, re, xmltodict
-
-OUTPUT_PATH = "./temp"
+import requests, re, xmltodict, os, subprocess, shutil
 
 device = Device.load("./device.prd")
 cdm = Cdm.from_device(device)
@@ -107,5 +105,37 @@ cdm.close(session_id)
 
 print()
 name = input("name (without .mkv) : ")
+
 print()
-print(f'N_m3u8DL-RE -sa all -sv best -M format=mkv:muxer=mkvmerge --key {videoKey} --key {audioKey} --use-shaka-packager --save-name "{name}" "{mpd}"')
+command = f'N_m3u8DL-RE -sa all -sv best -M format=mkv:muxer=mkvmerge --key {videoKey} --key {audioKey} --use-shaka-packager --save-name "{name}" "{mpd}"'
+print(command)
+
+with os.popen(command) as stream:
+    for line in stream:
+        print(line, end="")
+
+with open("tag.txt", "r", encoding="utf-8") as f:
+            tag = f.read()
+
+mkvName = name + ".mkv"
+nfoName = name + ".nfo"
+
+process = subprocess.run(
+    ['MediaInfo', mkvName],
+    capture_output=True,
+    text=True,
+    encoding='utf-8'
+)
+
+with open(nfoName, "w", encoding="utf-8") as f:
+                f.write(tag)
+                
+                f.write(f"{process.stdout}".replace(".\\", "").replace("./", ""))
+
+os.makedirs(name, exist_ok=True)
+
+try:
+    shutil.move(mkvName, name)
+    shutil.move(nfoName, name)
+except Exception as e:
+    print("filing failed!")
